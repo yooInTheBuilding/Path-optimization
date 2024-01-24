@@ -1,6 +1,7 @@
 package kr.co.icia.mapline.util;
 
 import java.io.IOException;
+import java.io.UnsupportedEncodingException;
 import java.net.URI;
 import java.net.URLEncoder;
 import java.net.http.HttpClient;
@@ -8,14 +9,17 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import kr.co.icia.mapline.APIKEY;
+import kr.co.icia.mapline.dto.Places;
 import kr.co.icia.mapline.util.KakaoApiUtil.KakaoDirections.Route.Section.Road;
 
 public class KakaoApiUtil {
-    private static final String REST_API_KEY = "82684ed9dc3e4e27a58d6d9389868e88";
+    private static final String REST_API_KEY = APIKEY.apikey;
 
     /**
      * 자동차 길찾기
@@ -72,7 +76,7 @@ public class KakaoApiUtil {
         //요청을 보내서 온 응답을 response에 저장   //client인스턴스의 send메서드에 request(api요청 양식)을 담아서 api 요청
         HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
         String responseBody = response.body();//응답받은 값의 body값을 responseBody에 저장
-        System.out.println(responseBody);//출력
+        System.out.println("Point: " + responseBody);//출력
 
         //밑의 줄을 보기 전에 밑에 정의된 KakaoAddress 클래스 참조
         KakaoAddress kakaoAddress = new ObjectMapper().readValue(responseBody, KakaoAddress.class);//responseBody를 kakaoAdress 인스턴스에 저장함
@@ -82,6 +86,64 @@ public class KakaoApiUtil {
         }
         KakaoAddress.Document document = documents.get(0); //요청한 좌표값은 어차피 하나이므로 documents리스트의 첫째 값을 받아 document 인스턴스에 저장
         return new Point(document.getX(), document.getY()); //document의 x, y값을 Point 객체에 담아 반환
+    }
+
+    public static List<Pharmacy> getPointsByKeyword(String keyword) throws IOException, InterruptedException {
+        Point academy = KakaoApiUtil.getPointByAddress("학익동 663-1번지");
+        HttpClient client = HttpClient.newHttpClient();
+        String url = "https://dapi.kakao.com/v2/local/search/keyword.json";
+        assert academy != null;
+        url += "?query=" + URLEncoder.encode(keyword, "UTF-8")
+                + "&x=" + academy.x
+                + "&y=" + academy.y
+                + "&radius=5000";
+
+        HttpRequest request = HttpRequest.newBuilder()
+                .header("Authorization", "KakaoAK " + REST_API_KEY)
+                .uri(URI.create(url))
+                .GET()
+                .build();
+        HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+        String responseBody = response.body();
+        System.out.println("keyword: " + responseBody);
+
+        List<Pharmacy> pharmacyList = new ArrayList<>();
+
+        Places places = new ObjectMapper().readValue(responseBody, Places.class);
+        List<Places.Document> documents = places.getDocuments();
+        Places.Meta meta = places.getMeta();
+        if (documents.isEmpty() || meta == null) {
+            return null;
+        }
+        for (Places.Document document : documents) {
+            Pharmacy pharmacy = new Pharmacy(Double.parseDouble(document.getX()),
+                    Double.parseDouble(document.getY()), document.getPlace_name(), document.getPhone());
+            pharmacyList.add(pharmacy);
+        }
+        if (meta.getTotal_count() > 45) {
+            for (int i = 1; i <= meta.getTotal_count() / 45; i++) {
+                String url2 = url + "&page=" + (i + 1);
+                HttpRequest request2 = HttpRequest.newBuilder()
+                        .header("Authorization", "KakaoAK " + REST_API_KEY)
+                        .uri(URI.create(url2))
+                        .GET()
+                        .build();
+                HttpResponse<String> response2 = client.send(request, HttpResponse.BodyHandlers.ofString());
+                String responseBody2 = response.body();
+                Places places2 = new ObjectMapper().readValue(responseBody2, Places.class);
+                List<Places.Document> documents2 = places.getDocuments();
+                Places.Meta meta2 = places.getMeta();
+                if (documents2.isEmpty() || meta2 == null) {
+                    return null;
+                }
+                for (Places.Document document : documents2) {
+                    Pharmacy pharmacy2 = new Pharmacy(Double.parseDouble(document.getX()),
+                            Double.parseDouble(document.getY()), document.getPlace_name(), document.getPhone());
+                    pharmacyList.add(pharmacy2);
+                }
+            }
+        }
+        return pharmacyList;
     }
 
     @JsonIgnoreProperties(ignoreUnknown = true) //api로 받아온 json값에서 원하는 값(vertexes)만 추출하기 위해 class안에 class가 들어가는 식으로 분리함
@@ -162,5 +224,36 @@ public class KakaoApiUtil {
             return y;
         }
 
+    }
+
+
+    public static class Pharmacy {
+        private Double x;
+        private Double y;
+        private String name;
+        private String tel;
+
+        public Double getX() {
+            return x;
+        }
+
+        public Double getY() {
+            return y;
+        }
+
+        public String getName() {
+            return name;
+        }
+
+        public String getTel() {
+            return tel;
+        }
+
+        public Pharmacy(Double x, Double y, String name, String tel) {
+            this.x = x;
+            this.y = y;
+            this.name = name;
+            this.tel = tel;
+        }
     }
 }

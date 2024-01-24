@@ -23,7 +23,6 @@ public class MapController {
      * @param toAddress   목적지 주소정보
      * @param model       html파일에 값을 전달해주는 객체
      * @return html 파일위치
-     *
      */
     //*****3번***** :
     @GetMapping("/map/paths") // url : /map/paths
@@ -55,7 +54,6 @@ public class MapController {
      * @param address 주소정보
      * @param model   html파일에 값을 전달해주는 객체
      * @return html 파일위치
-     *
      */
     //*****1번****** : 입력받은 주소를 x, y값으로 변환해줌
     @GetMapping("/map/address/point") // url : /map/address/point
@@ -75,7 +73,6 @@ public class MapController {
      * @param toAddress   목적지 주소정보
      * @param model       html파일에 값을 전달해주는 객체
      * @return html 파일위치
-     *
      */
     //*****2번***** : 출발지와 도착지를 각각 x, y값으로 변환 사실상 getMapAddressPoint의 두배와 다를 바 없음
     @GetMapping("/map/marker") // url : /map/marker
@@ -92,5 +89,22 @@ public class MapController {
         }
         return "map/marker";
     }
+
+    @GetMapping("/map/keyword")
+    public String getKeyword(@RequestParam(required = false) String keyword, Model model) throws IOException, InterruptedException {
+        if (keyword != null && !keyword.isEmpty()) {
+            List<KakaoApiUtil.Pharmacy> pharmacyList = KakaoApiUtil.getPointsByKeyword(keyword);
+            int cnt = 0;
+            for (KakaoApiUtil.Pharmacy pharmacy : pharmacyList) {
+                cnt++;
+            }
+            System.out.println(cnt);
+            String pharmacyListJson = new ObjectMapper().writer().writeValueAsString(pharmacyList);
+            model.addAttribute("pharmacyList", pharmacyListJson);
+            System.out.println("실행됨");
+        }
+        return "map/keyword";
+    }
+
 
 }

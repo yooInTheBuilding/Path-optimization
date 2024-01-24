@@ -28,4 +28,18 @@ public class KakaoUtilTest {
             System.out.println("x:" + point.getX() + ",y:" + point.getY());
         }
     }
+
+    @Test
+    public void getKeywordTest() throws IOException, InterruptedException {
+        List<KakaoApiUtil.Pharmacy> pharmacyList = KakaoApiUtil.getPointsByKeyword("피시방");
+        StringBuilder sb = new StringBuilder();
+        assert pharmacyList != null;
+        for (KakaoApiUtil.Pharmacy pharmacy : pharmacyList){
+            sb.append("x: ").append(pharmacy.getX()).append("\n");
+            sb.append("y: ").append(pharmacy.getY()).append("\n");
+            sb.append("name: ").append(pharmacy.getName()).append("\n");
+            sb.append("tel: ").append(pharmacy.getTel()).append("\n");
+        }
+        System.out.println(sb);
+    }
 }
