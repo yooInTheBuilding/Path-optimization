@@ -15,7 +15,6 @@
     var pharmacyList = JSON.parse([[${pharmacyList}]]) || []; // JSON.parse()는 JSON 문자열을 자바스크립트 객체로 변환
     console.log(pharmacyList); // JSON.parse()로 변환한 객체를 콘솔에 출력
 </script>
-<div id="map" style="width:100%;height:350px;"></div> <!-- 지도가 표시될 div -->
 
 <form>
     검색 : <input type="text" name="keyword" th:value="${param.keyword}"/> <!-- 검색어 입력 -->
@@ -24,8 +23,7 @@
 
     <button>변환</button> <!-- 검색 버튼 -->
 </form>
-<br>
-
+<div id="map"style="width:100%;height:900px;position: relative"></div> <!-- 지도가 표시될 div -->
 <script th:inline="javascript"> // thymeleaf에서 자바스크립트 사용하기 위해 th:inline="javascript" 사용
     function displayMarker(locPosition, message) { // 마커를 생성하고 지도 위에 마커를 표시하는 함수입니다
 
