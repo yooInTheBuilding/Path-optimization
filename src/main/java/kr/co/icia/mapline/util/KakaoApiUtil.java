@@ -112,7 +112,7 @@ public class KakaoApiUtil {
         String responseBody = response.body(); //응답받은 값의 body값을 responseBody에 저장
         System.out.println("keyword: " + responseBody); //출력
 
-        List<Pharmacy> pharmacyList = new ArrayList<>(); //화면에 표시할 Pharmacy들을 저장할 pharmacyList 생성
+        List<Pharmacy> pharmacyList = new ArrayList<>(); //화면에 표시할 Pharmacy들을 저장할 pharmacyList 생성 저어기 밑에 pharmacy class 보고오기
 
         Places places = new ObjectMapper().readValue(responseBody, Places.class); //응답받은 값(responseBody)을 Places 인스턴스에 저장
         List<Places.Document> documents = places.getDocuments(); //응답받은 값(places)을 documents(document로 이루어진 List)에 저장
@@ -125,8 +125,8 @@ public class KakaoApiUtil {
                     Double.parseDouble(document.getY()), document.getPlace_name(), document.getPhone(), document.getPlace_url()); //document의 place_name, phone값을 Pharmacy 객체에 담아 pharmacyList에 저장
             pharmacyList.add(pharmacy); //pharmacyList에 pharmacy 객체를 추가
         }
-        if (meta.getTotal_count() > 15) { //검색된 장소가 45개를 넘어갈 경우
-            for (int i = 1; i <= meta.getTotal_count() / 15; i++) { //45개씩 나눠서 검색
+        if (meta.getTotal_count() > 15) { //검색된 장소가 15개를 넘어갈 경우
+            for (int i = 1; i <= meta.getTotal_count() / 15; i++) { //15개씩 나눠서 검색
                 String url2 = url + "&page=" + (i + 1); //api 주소에 page값 추가
                 System.out.println(url2); //출력
                 HttpRequest request2 = HttpRequest.newBuilder() //api 요청 양식
