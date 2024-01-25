@@ -3,80 +3,126 @@
 <head>
     <meta charset="utf-8">
     <title>여러개 마커 표시하기</title>
-<script src="apikey.js">
-    const API_KEY = config.apikey;
-    document.getElementById("script").src = API_KEY
-</script>
+    <script src="apikey.js">
+        const API_KEY = config.apikey;
+        document.getElementById("script").src = API_KEY
+    </script>
 </head>
 <body>
-<script id="script" type="text/javascript" src=''></script>
+<script id="script" type="text/javascript"
+        src='//dapi.kakao.com/v2/maps/sdk.js?appkey='></script>
 <script th:inline="javascript">
-    var pharmacyList = JSON.parse([[${pharmacyList}]]) || [];
-    console.log(pharmacyList);
+    var pharmacyList = JSON.parse([[${pharmacyList}]]) || []; // JSON.parse()는 JSON 문자열을 자바스크립트 객체로 변환
+    console.log(pharmacyList); // JSON.parse()로 변환한 객체를 콘솔에 출력
 </script>
-<div id="map" style="width:100%;height:350px;"></div>
+<div id="map" style="width:100%;height:350px;"></div> <!-- 지도가 표시될 div -->
 
 <form>
-    검색 : <input type="text" name="keyword" th:value="${param.keyword}"/>
-    <button>변환</button>
+    검색 : <input type="text" name="keyword" th:value="${param.keyword}"/> <!-- 검색어 입력 -->
+    <input type="hidden" name="x" th:value="${param.x}" id="x"> <!-- 저어기 밑에 현재위치 구하는 함수있음 -->
+    <input type="hidden" name="y" th:value="${param.y}" id="y"> <!-- 저어기 밑에 현재위치 구하는 함수있음 -->
+
+    <button>변환</button> <!-- 검색 버튼 -->
 </form>
 <br>
-<button id="btn1">위치조정</button>
 
-<script th:inline="javascript">
+<script th:inline="javascript"> // thymeleaf에서 자바스크립트 사용하기 위해 th:inline="javascript" 사용
+    function displayMarker(locPosition, message) { // 마커를 생성하고 지도 위에 마커를 표시하는 함수입니다
+
+        // 마커를 생성합니다
+        var marker = new kakao.maps.Marker({ // 마커를 생성하고 지도 위에 마커를 표시하는 함수입니다
+            map: map, // 마커를 표시할 지도
+            position: locPosition // 마커의 위치
+        }); // 마커를 생성합니다
+
+        var iwContent2 = message, // 인포윈도우에 표시할 내용
+            iwRemoveable2 = true; // 삭제가 가능한지
+
+        // 인포윈도우를 생성합니다
+        var infowindow = new kakao.maps.InfoWindow({ // 인포윈도우를 생성합니다
+            content: iwContent2, // 인포윈도우에 표시할 내용
+            removable: iwRemoveable2 // 삭제가 가능한지
+        });
+
+        // 인포윈도우를 마커위에 표시합니다
+        infowindow.open(map, marker);
+
+        // 지도 중심좌표를 접속위치로 변경합니다
+        map.setCenter(locPosition);
+    }
+
+    if (navigator.geolocation) { // HTML5의 geolocation으로 사용할 수 있는지 확인합니다
+
+        // GeoLocation을 이용해서 접속 위치를 얻어옵니다
+        navigator.geolocation.getCurrentPosition(function (position) {
+
+            var lat = position.coords.latitude, // 위도
+                lon = position.coords.longitude; // 경도
+            document.getElementById("x").value = lon; // 현재위치의 x좌표를 input태그에 넣어줌
+            document.getElementById("y").value = lat; // 현재위치의 y좌표를 input태그에 넣어줌
+            var locPosition = new kakao.maps.LatLng(lat, lon), // 마커가 표시될 위치를 geolocation으로 얻어온 좌표로 생성합니다
+                message = '<div style="padding:5px;">현재위치</div>'; // 인포윈도우에 표시될 내용입니다
+            displayMarker(locPosition, message); // 마커와 인포윈도우를 표시합니다
+        });
+
+
+    }
     var mapContainer = document.getElementById('map'), // 지도를 표시할 div
-        mapOption = {
+        mapOption = { // 지도를 생성할 때 필요한 기본 옵션
             center: new kakao.maps.LatLng(33.450701, 126.570667), // 지도의 중심좌표
             level: 3 // 지도의 확대 레벨
         };
 
     var map = new kakao.maps.Map(mapContainer, mapOption); // 지도를 생성합니다
-    document.getElementById("btn1").addEventListener("click", () => {
-            var center = new kakao.maps.LatLng(pharmacyList[0].y, pharmacyList[0].x);
-            map.setCenter(center);
-        }
-    );
 
     // 마커 이미지의 이미지 주소입니다
     var imageSrc = "https://t1.daumcdn.net/localimg/localimages/07/mapapidoc/markerStar.png";
+    console.log("total: " + pharmacyList.length); // pharmacyList의 길이를 콘솔에 출력
+    for (var i = 0; i < pharmacyList.length; i++) { // pharmacyList의 길이만큼 반복
+        try // 예외처리
+        {
+            var imageSize = new kakao.maps.Size(24, 35); // 마커 이미지의 크기
 
-    for (var i = 0; i < pharmacyList.length; i++) {
+            // 마커 이미지를 생성합니다
+            var markerImage = new kakao.maps.MarkerImage(imageSrc, imageSize);
 
-        // 마커 이미지의 이미지 크기 입니다
-        var imageSize = new kakao.maps.Size(24, 35);
-
-        // 마커 이미지를 생성합니다
-        var markerImage = new kakao.maps.MarkerImage(imageSrc, imageSize);
-
-        // 마커를 생성합니다
-        var marker = new kakao.maps.Marker({
-            map: map, // 마커를 표시할 지도
-            position: new kakao.maps.LatLng(pharmacyList[i].y, pharmacyList[i].x), // 마커를 표시할 위치
-            title: pharmacyList[i].name, // 마커의 타이틀, 마커에 마우스를 올리면 타이틀이 표시됩니다
-            image: markerImage, // 마커 이미지
-            clickable: true
-        });
-
-        var pharmacyName = pharmacyList[i].name;
-        var pharmacyTel = pharmacyList[i].tel;
-        var iwContent = `<div style="padding:5px;">${pharmacyName}</div><br><div style="padding:5px;" id="div2">${pharmacyTel}</div>`;
-        var iwRemoveable = true;
-
-        var infowindow = new kakao.maps.InfoWindow({
-            content: iwContent,
-            removable: iwRemoveable
-        });
-
-
-        (function (marker, infowindow) {
-            kakao.maps.event.addListener(marker, 'click', function () {
-                if (infowindow.getMap()) {
-                    infowindow.close();
-                } else {
-                    infowindow.open(map, marker);
-                }
+            // 마커를 생성합니다
+            var marker = new kakao.maps.Marker({
+                map: map, // 마커를 표시할 지도
+                position: new kakao.maps.LatLng(pharmacyList[i].y, pharmacyList[i].x), // 마커를 표시할 위치
+                title: pharmacyList[i].name, // 마커의 타이틀, 마커에 마우스를 올리면 타이틀이 표시됩니다
+                image: markerImage, // 마커 이미지
+                clickable: true // 마커를 클릭했을 때 지도의 클릭 이벤트가 발생하지 않도록 설정합니다
             });
-        })(marker, infowindow);
+
+            var pharmacyName = pharmacyList[i].name; // 약국 이름
+            var pharmacyTel = pharmacyList[i].tel; // 약국 전화번호
+            var pharmacyUrl = pharmacyList[i].url; // 약국 홈페이지 주소
+            console.log(pharmacyUrl); // 약국 홈페이지 주소를 콘솔에 출력
+            var iwContent = `<div style="padding:5px;">${pharmacyName}</div>
+                                <br>
+                                <div style="padding:5px;" id="div2">${pharmacyTel}</div>`; // 인포윈도우에 표시될 내용
+            var iwRemoveable = true; // 삭제가 가능한지
+
+            var infowindow = new kakao.maps.InfoWindow({ // 인포윈도우를 생성합니다
+                content: iwContent, // 인포윈도우에 표시할 내용
+                removable: iwRemoveable // 삭제가 가능한지
+            });
+
+
+            (function (marker, infowindow) { // 마커에 클릭이벤트를 등록합니다
+                kakao.maps.event.addListener(marker, 'click', function () { // 마커를 클릭하면 인포윈도우에 장소명을 표시합니다
+                    if (infowindow.getMap()) { // 현재 인포윈도우가 지도에 표시된 상태이면
+                        infowindow.close(); // 인포윈도우를 숨깁니다
+                    } else { // 인포윈도우가 지도에 표시되지 않은 상태이면
+                        infowindow.open(map, marker); // 인포윈도우를 표시합니다
+                    }
+                });
+            })(marker, infowindow); // 마커에 클릭이벤트를 등록합니다
+        } catch (error) { // 예외처리
+            console.log("Error index: " + i); // 에러가 발생한 인덱스를 콘솔에 출력
+            console.log(error); // 에러를 콘솔에 출력
+        }
     }
 </script>
 </body>

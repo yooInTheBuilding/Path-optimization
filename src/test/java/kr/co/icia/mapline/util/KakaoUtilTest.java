@@ -1,11 +1,10 @@
 package kr.co.icia.mapline.util;
 
-import java.io.IOException;
-import java.util.List;
-
+import kr.co.icia.mapline.util.KakaoApiUtil.Point;
 import org.junit.jupiter.api.Test;
 
-import kr.co.icia.mapline.util.KakaoApiUtil.Point;
+import java.io.IOException;
+import java.util.List;
 
 public class KakaoUtilTest {
 
@@ -31,10 +30,10 @@ public class KakaoUtilTest {
 
     @Test
     public void getKeywordTest() throws IOException, InterruptedException {
-        List<KakaoApiUtil.Pharmacy> pharmacyList = KakaoApiUtil.getPointsByKeyword("피시방");
+        List<KakaoApiUtil.Pharmacy> pharmacyList = KakaoApiUtil.getPointsByKeyword("약국", "127.105432", "37.359596");
         StringBuilder sb = new StringBuilder();
         assert pharmacyList != null;
-        for (KakaoApiUtil.Pharmacy pharmacy : pharmacyList){
+        for (KakaoApiUtil.Pharmacy pharmacy : pharmacyList) {
             sb.append("x: ").append(pharmacy.getX()).append("\n");
             sb.append("y: ").append(pharmacy.getY()).append("\n");
             sb.append("name: ").append(pharmacy.getName()).append("\n");
