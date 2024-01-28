@@ -18,6 +18,7 @@
     검색 : <input type="text" name="keyword" th:value="${param.keyword}"/> <!-- 검색어 입력 -->
     <button>변환</button> <!-- 검색 버튼 -->
 </form>
+<button onclick="start()">출발</button>
 <div id="map"style="width:100%;height:900px;position: relative"></div> <!-- 지도가 표시될 div -->
 <script th:inline="javascript"> // thymeleaf에서 자바스크립트 사용하기 위해 th:inline="javascript" 사용
     function displayMarker(locPosition, message) { // 마커를 생성하고 지도 위에 마커를 표시하는 함수입니다
@@ -47,7 +48,7 @@
     var mapContainer = document.getElementById('map'), // 지도를 표시할 div
         mapOption = { // 지도를 생성할 때 필요한 기본 옵션
 
-            center: new kakao.maps.LatLng(33.450701, 126.570667), // 지도의 중심좌표
+            center: new kakao.maps.LatLng(37.4388938204128, 126.675113024566), // 지도의 중심좌표
             level: 3 // 지도의 확대 레벨
         };
 
@@ -126,6 +127,54 @@
 
 
     }
+    var customOverlay;
+    // 자동차 그리기!!
+    if (paths[0].y != null) {
+        // 커스텀 오버레이에 표시할 내용입니다
+        // HTML 문자열 또는 Dom Element 입니다
+        var content = '<img src="/racing-car-303766_640.png" style="width:70px;" id="car">';
+
+        // 커스텀 오버레이가 표시될 위치입니다
+        var position = new kakao.maps.LatLng(paths[0].y, paths[0].x);
+
+        // 커스텀 오버레이를 생성합니다
+        customOverlay = new kakao.maps.CustomOverlay({
+            position: position,
+            content: content
+        });
+
+        // 커스텀 오버레이를 지도에 표시합니다
+        customOverlay.setMap(map);
+    }
+
+
+    function moveVehicle(point) {
+        var position = new kakao.maps.LatLng(point.y, point.x);
+        customOverlay.setPosition(position);
+        customOverlay.setMap(map);
+    }
+
+    var interval, pointIndex;
+
+    function start() {
+        if (paths.length > 0) {
+            pointIndex = 0;
+            interval = setInterval(function () {
+                moveVehicle(paths[pointIndex]);
+                pointIndex++;
+                if (pointIndex > 0){
+                    var degree = -((Math.atan2((paths[pointIndex].y - paths[pointIndex - 1].y), (paths[pointIndex].x - paths[pointIndex - 1].x)) * 180) / Math.PI);
+
+                    document.getElementById("car").style.transform =
+                        `rotate(${degree}deg)`
+                }
+                if (pointIndex >= paths.length) {
+                    clearInterval(interval);
+                }
+            }, 100);
+        }
+    }
+
 </script>
 </body>
 </html>

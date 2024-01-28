@@ -78,7 +78,7 @@
     if(fromY != null) {
         // 커스텀 오버레이에 표시할 내용입니다
         // HTML 문자열 또는 Dom Element 입니다
-        var content = '<img src="/racing-car-303766_640.png" style="width:70px;">';
+        var content = '<img src="/racing-car-303766_640.png" style="width:70px;" id="car">';
 
         // 커스텀 오버레이가 표시될 위치입니다
         var position = new kakao.maps.LatLng(fromY, fromX);
@@ -107,6 +107,9 @@
             interval = setInterval(function() {
                 moveVehicle(pointList[pointIndex]);
                 pointIndex++;
+                if (pointIndex > 0){
+                    document.getElementById("car").style.transform = `rotate(${})`
+                }
                 if(pointIndex >= pointList.length) {
                     clearInterval(interval);
                 }
