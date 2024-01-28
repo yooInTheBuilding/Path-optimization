@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.concurrent.ExecutionException;
 
 @Controller //주석에 표기된 번호 순서대로 볼 것
 public class MapController {
@@ -99,7 +100,7 @@ public class MapController {
      * @return html 파일위치
      */
     @GetMapping("/map/keyword")
-    public String getKeyword(@RequestParam(required = false) String keyword, @RequestParam(required = false) String option,  Model model) throws IOException, InterruptedException { //y좌표를 입력받음
+    public String getKeyword(@RequestParam(required = false) String keyword, @RequestParam(required = false) String option,  Model model) throws IOException, InterruptedException, ExecutionException { //y좌표를 입력받음
         if (keyword != null && !keyword.isEmpty()) { //keyword, x, y값이 모두 입력되었을 때 실행
             List<KakaoApiUtil.Marker> markerList = KakaoApiUtil.getPointsByKeyword(keyword); //keyword, x, y값을 getPointsByKeyword에 넣어서 반환되는 Pharmacy로 구성된 List를 저장
             //int cnt = 0; //pharmacyList의 크기를 저장할 변수

@@ -7,6 +7,7 @@ import org.junit.jupiter.api.Test;
 import java.io.IOException;
 import java.util.List;
 import java.util.Objects;
+import java.util.concurrent.ExecutionException;
 
 public class KakaoUtilTest {
 
@@ -68,9 +69,10 @@ public class KakaoUtilTest {
             sb.append("tel: ").append(marker.getTel()).append("\n");
         }
         System.out.println(sb);
+        System.out.println(markerList.size());
     }
     @Test
-    public void getPathsByMarkerTest() throws IOException, InterruptedException {
+    public void getPathsByMarkerTest() throws IOException, InterruptedException, ExecutionException {
         List<Point> paths = KakaoApiUtil.getPathsByMarker(Objects.requireNonNull(KakaoApiUtil.getPointsByKeyword("약국")), "distance");
         StringBuilder sb = new StringBuilder();
         int cnt = 0;
@@ -81,6 +83,7 @@ public class KakaoUtilTest {
             cnt++;
         }
         System.out.println(sb);
+        System.out.println(cnt);
     }
 
     @Test

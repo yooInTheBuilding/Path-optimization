@@ -14,6 +14,10 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 public class KakaoApiUtil {
 
@@ -56,22 +60,69 @@ public class KakaoApiUtil {
                 .build();
         HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString()); //api 요청을 보내고 반환된 값을 response 인스턴스에 저장
         String responseBody = response.body(); //response 인스턴스의 바디값은 responseBody에 저장
-        System.out.println(responseBody);
+        //System.out.println(responseBody);
         //저어기 밑에 정의된 KakaoDirectios class 보고오기
-        return new ObjectMapper().readValue(responseBody, KakaoDirections.class);
+        return new ObjectMapper().readValue(responseBody, KakaoDirections.class);//responseBody를 KakaoDirections 인스턴스에 저장
     }
 
-    public static int getDistance(Point from, Point to) throws IOException, InterruptedException {
-        KakaoDirections kakaoDirections = getKakaoDirections(from, to);
-        return kakaoDirections.getRoutes().get(0).getSummary().getDistance();
+    public static int getDistance(Point from, Point to) throws IOException, InterruptedException {//요약: 출발지와 도착지의 x, y값을 입력받아 거리를 구한 그 거리를 반환
+        KakaoDirections kakaoDirections = getKakaoDirections(from, to);//출발지와 도착지의 x, y값을 입력받아 경로를 구한 그 경로를 point의 List로 반환(선은 점들의 집합임)
+        if (kakaoDirections == null || kakaoDirections.getRoutes() == null) {
+            throw new IllegalArgumentException("없음");
+        }
+        return kakaoDirections.getRoutes().get(0).getSummary().getDistance();//kakaoDirections의 route(getRoutes().get(0))-summary(getSummary())-distance(getDistance())
     }
 
-    public static int getDuration(Point from, Point to) throws IOException, InterruptedException {
-        KakaoDirections kakaoDirections = getKakaoDirections(from, to);
-        return kakaoDirections.getRoutes().get(0).getSummary().getDuration();
+    public static int getDuration(Point from, Point to) throws IOException, InterruptedException { //요약: 출발지와 도착지의 x, y값을 입력받아 시간을 구한 그 시간을 반환
+        KakaoDirections kakaoDirections = getKakaoDirections(from, to); //출발지와 도착지의 x, y값을 입력받아 경로를 구한 그 경로를 point의 List로 반환(선은 점들의 집합임)
+        if (kakaoDirections == null || kakaoDirections.getRoutes() == null) {
+            throw new IllegalArgumentException("없음");
+        }
+        return kakaoDirections.getRoutes().get(0).getSummary().getDuration(); //kakaoDirections의 route(getRoutes().get(0))-summary(getSummary())-duration(getDuration())
     }
 
-    public static List<Marker> getShortestPath(List<Marker> markers, Point pointOrigin) throws IOException, InterruptedException {
+    public static List<Marker> getShortestPath(List<Marker> markers, Point pointOrigin) throws IOException, InterruptedException { //요약: markers, x, y값을 입력받아 Pharmacy의 List를 반환하는 함수 getShortestPath
+        List<Marker> shortestPath = new ArrayList<>(); //화면에 표시할 Marker들을 저장할 shortestPath 생성
+        Marker current = null; //현재 위치를 저장할 current 생성
+
+        for (Marker marker : markers) { //enhanced for문으로 markers안의 marker들을 각각 탐색하여 current에 저장
+            if (marker.getX().equals(pointOrigin.getX()) && marker.getY().equals(pointOrigin.getY())) { //marker의 x, y값이 pointOrigin의 x, y값과 같을 경우
+                current = marker; //current에 marker를 저장
+                break;  //반복문 종료
+            }
+        }
+
+        if (current == null) { //current가 null일 경우
+            throw new IllegalArgumentException("없음"); //예외처리
+        }
+
+        shortestPath.add(current); //shortestPath에 current를 추가
+        markers.remove(current); //markers에서 current를 제거
+
+        while (!markers.isEmpty()) { //markers가 비어있지 않을 경우
+            Marker closest = null; //가장 가까운 marker를 저장할 closest 생성
+            int shortestDistance = Integer.MAX_VALUE; //가장 가까운 marker와의 거리를 저장할 shortestDistance 생성
+
+            for (Marker marker : markers) { //enhanced for문으로 markers안의 marker들을 각각 탐색하여 shortestDistance와 closest를 구함
+                int distance = getDistance(new Point(current.getX(), current.getY()), new Point(marker.getX(), marker.getY())); //current와 marker의 거리를 구함
+                if (distance < shortestDistance) { //distance가 shortestDistance보다 작을 경우
+                    closest = marker; //closest에 marker를 저장
+                    shortestDistance = distance; //shortestDistance에 distance를 저장
+                }
+            }
+
+            shortestPath.add(closest); //shortestPath에 closest를 추가
+            markers.remove(closest); //markers에서 closest를 제거
+            current = closest; //current에 closest를 저장
+        }
+
+
+        shortestPath.add(shortestPath.get(0)); //shortestPath의 첫번째 값을 마지막에 추가
+
+        return shortestPath; //shortestPath 반환
+    }
+
+    public static List<Marker> getShortestPathByMultiThread(List<Marker> markers, Point pointOrigin) throws IOException, InterruptedException, ExecutionException {
         List<Marker> shortestPath = new ArrayList<>();
         Marker current = null;
 
@@ -83,20 +134,42 @@ public class KakaoApiUtil {
         }
 
         if (current == null) {
-            throw new IllegalArgumentException("pointOrigin is not in the list of markers");
+            throw new IllegalArgumentException("없음");
         }
 
         shortestPath.add(current);
         markers.remove(current);
 
+        ExecutorService executor = Executors.newFixedThreadPool(5); // 병렬 처리를 위한 스레드 풀 생성
+
         while (!markers.isEmpty()) {
             Marker closest = null;
             int shortestDistance = Integer.MAX_VALUE;
 
+            List<CompletableFuture<Integer>> futures = new ArrayList<>(); // 각 마커에 대한 거리 계산 결과를 저장할 Future 리스트
+
             for (Marker marker : markers) {
-                int distance = getDistance(new Point(current.getX(), current.getY()), new Point(marker.getX(), marker.getY()));
+                Marker finalCurrent = current;
+                CompletableFuture<Integer> future = CompletableFuture.supplyAsync(() -> {
+                    try {
+                        assert finalCurrent != null;
+                        System.out.println("current: " + finalCurrent.getX() + ", " + finalCurrent.getY());
+                        System.out.println("marker: " + marker.getX() + ", " + marker.getY());
+                        return getDistance(new Point(finalCurrent.getX(), finalCurrent.getY()), new Point(marker.getX(), marker.getY()));
+                    } catch (IOException | InterruptedException e) {
+                        throw new RuntimeException(e);
+                    }
+                }, executor); // 각 마커에 대한 거리 계산을 비동기적으로 수행
+
+                futures.add(future);
+            }
+
+            CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join(); // 모든 거리 계산이 완료될 때까지 기다림
+
+            for (int i = 0; i < markers.size(); i++) {
+                int distance = futures.get(i).get(); // 각 마커에 대한 거리 계산 결과를 가져옴
                 if (distance < shortestDistance) {
-                    closest = marker;
+                    closest = markers.get(i);
                     shortestDistance = distance;
                 }
             }
@@ -106,7 +179,68 @@ public class KakaoApiUtil {
             current = closest;
         }
 
-        // Add pointOrigin as the final destination
+        executor.shutdown(); // 스레드 풀 종료
+
+        shortestPath.add(shortestPath.get(0));
+
+        return shortestPath;
+    }
+    public static List<Marker> getShortestPathByMultiThread2(List<Marker> markers, Point pointOrigin) throws IOException, InterruptedException, ExecutionException {
+        List<Marker> shortestPath = new ArrayList<>();
+        Marker current = null;
+
+        for (Marker marker : markers) {
+            if (marker.getX().equals(pointOrigin.getX()) && marker.getY().equals(pointOrigin.getY())) {
+                current = marker;
+                break;
+            }
+        }
+
+        if (current == null) {
+            throw new IllegalArgumentException("없음");
+        }
+
+        shortestPath.add(current);
+        markers.remove(current);
+
+        ExecutorService executor = Executors.newFixedThreadPool(10); // 병렬 처리를 위한 스레드 풀 생성
+
+        while (!markers.isEmpty()) {
+            Marker closest = null;
+            Double shortestDistance = (double) Integer.MAX_VALUE;
+
+            List<CompletableFuture<Double>> futures = new ArrayList<>(); // 각 마커에 대한 거리 계산 결과를 저장할 Future 리스트
+
+            for (Marker marker : markers) {
+                Marker finalCurrent = current;
+                CompletableFuture<Double> future = CompletableFuture.supplyAsync(() -> {
+                    assert finalCurrent != null;
+                    System.out.println("current: " + finalCurrent.getX() + ", " + finalCurrent.getY());
+                    System.out.println("marker: " + marker.getX() + ", " + marker.getY());
+                    //return getDistance(new Point(finalCurrent.getX(), finalCurrent.getY()), new Point(marker.getX(), marker.getY()));
+                    return (marker.getX() - finalCurrent.getX()) * (marker.getX() - finalCurrent.getX()) + (marker.getY() - finalCurrent.getY()) * (marker.getY() - finalCurrent.getY());
+                }, executor); // 각 마커에 대한 거리 계산을 비동기적으로 수행
+
+                futures.add(future);
+            }
+
+            CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join(); // 모든 거리 계산이 완료될 때까지 기다림
+
+            for (int i = 0; i < markers.size(); i++) {
+                Double distance = futures.get(i).get(); // 각 마커에 대한 거리 계산 결과를 가져옴
+                if (distance < shortestDistance) {
+                    closest = markers.get(i);
+                    shortestDistance = distance;
+                }
+            }
+
+            shortestPath.add(closest);
+            markers.remove(closest);
+            current = closest;
+        }
+
+        executor.shutdown(); // 스레드 풀 종료
+
         shortestPath.add(shortestPath.get(0));
 
         return shortestPath;
@@ -124,7 +258,7 @@ public class KakaoApiUtil {
         }
 
         if (current == null) {
-            throw new IllegalArgumentException("pointOrigin is not in the list of markers");
+            throw new IllegalArgumentException("없음");
         }
 
         shortestTime.add(current);
@@ -150,6 +284,70 @@ public class KakaoApiUtil {
         // Add pointOrigin as the final destination
         shortestTime.add(shortestTime.get(0));
         return shortestTime;
+    }
+
+    public static List<Marker> getShortestTimeByMultiThread(List<Marker> markers, Point pointOrigin) throws IOException, InterruptedException, ExecutionException {
+        List<Marker> shortestPath = new ArrayList<>();
+        Marker current = null;
+
+        for (Marker marker : markers) {
+            if (marker.getX().equals(pointOrigin.getX()) && marker.getY().equals(pointOrigin.getY())) {
+                current = marker;
+                break;
+            }
+        }
+
+        if (current == null) {
+            throw new IllegalArgumentException("없음");
+        }
+
+        shortestPath.add(current);
+        markers.remove(current);
+
+        ExecutorService executor = Executors.newFixedThreadPool(5); // 병렬 처리를 위한 스레드 풀 생성
+
+        while (!markers.isEmpty()) {
+            Marker closest = null;
+            int shortestDuration = Integer.MAX_VALUE;
+
+            List<CompletableFuture<Integer>> futures = new ArrayList<>(); // 각 마커에 대한 거리 계산 결과를 저장할 Future 리스트
+
+            for (Marker marker : markers) {
+                Marker finalCurrent = current;
+                CompletableFuture<Integer> future = CompletableFuture.supplyAsync(() -> {
+                    try {
+                        assert finalCurrent != null;
+                        System.out.println("current: " + finalCurrent.getX() + ", " + finalCurrent.getY());
+                        System.out.println("marker: " + marker.getX() + ", " + marker.getY());
+                        return getDuration(new Point(finalCurrent.getX(), finalCurrent.getY()), new Point(marker.getX(), marker.getY()));
+                    } catch (IOException | InterruptedException e) {
+                        throw new RuntimeException(e);
+                    }
+                }, executor); // 각 마커에 대한 거리 계산을 비동기적으로 수행
+
+                futures.add(future);
+            }
+
+            CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join(); // 모든 거리 계산이 완료될 때까지 기다림
+
+            for (int i = 0; i < markers.size(); i++) {
+                int duration = futures.get(i).get(); // 각 마커에 대한 거리 계산 결과를 가져옴
+                if (duration < shortestDuration) {
+                    closest = markers.get(i);
+                    shortestDuration = duration;
+                }
+            }
+
+            shortestPath.add(closest);
+            markers.remove(closest);
+            current = closest;
+        }
+
+        executor.shutdown(); // 스레드 풀 종료
+
+        shortestPath.add(shortestPath.get(0));
+
+        return shortestPath;
     }
 
     /**
@@ -218,17 +416,17 @@ public class KakaoApiUtil {
         int cnt = 0;
         for (Places.Document document : documents) { //enhanced for문으로 documents안의 document들을 각각 탐색하여 Pharmacy 객체를 생성하고 pharmacyList에 저장
             Marker marker = new Marker(Double.parseDouble(document.getX()), //document의 x, y값을 Pharmacy 객체에 담아 pharmacyList에 저장
-                    Double.parseDouble(document.getY()), document.getPlace_name(), document.getPhone(),cnt, document.getPlace_url()); //document의 place_name, phone값을 Pharmacy 객체에 담아 pharmacyList에 저장
-            if (marker.getId()==0 || marker.getId() == 14 || marker.getId() == 29 || marker.getId() == 44) {
-                markerList.add(marker);
-            } //pharmacyList에 pharmacy 객체를 추가
+                    Double.parseDouble(document.getY()), document.getPlace_name(), document.getPhone(), cnt, document.getPlace_url()); //document의 place_name, phone값을 Pharmacy 객체에 담아 pharmacyList에 저장
+
+            markerList.add(marker);
+
             cnt++;
         }
         if (meta.getTotal_count() > 15) { //검색된 장소가 15개를 넘어갈 경우
             int temp = 0;
-            if (meta.getTotal_count() / 15 < 2){
+            if (meta.getTotal_count() / 15 < 2) {
                 temp = meta.getTotal_count() / 15;
-            }else {
+            } else {
                 temp = 2;
             }
             for (int i = 1; i <= temp; i++) { //15개씩 나눠서 검색
@@ -250,10 +448,10 @@ public class KakaoApiUtil {
                 }
                 for (Places.Document document : documents2) {//enhanced for문으로 documents2안의 document들을 각각 탐색하여 Pharmacy 객체를 생성하고 pharmacyList에 저장
                     Marker marker2 = new Marker(Double.parseDouble(document.getX()),//document의 x, y값을 Pharmacy 객체에 담아 pharmacyList에 저장
-                            Double.parseDouble(document.getY()), document.getPlace_name(), document.getPhone(),cnt, document.getPlace_url());//document의 place_name, phone값을 Pharmacy 객체에 담아 pharmacyList에 저장
-                    if (marker2.getId()==0 || marker2.getId() == 14 || marker2.getId() == 29 || marker2.getId() == 44) {
-                        markerList.add(marker2);
-                    }//pharmacyList에 pharmacy 객체를 추가}
+                            Double.parseDouble(document.getY()), document.getPlace_name(), document.getPhone(), cnt, document.getPlace_url());//document의 place_name, phone값을 Pharmacy 객체에 담아 pharmacyList에 저장
+
+                    markerList.add(marker2);
+
                     cnt++;
                 }
             }
@@ -261,16 +459,18 @@ public class KakaoApiUtil {
         return markerList;//markerList 반환
     }
 
-    public static List<Point> getPathsByMarker(List<Marker> markerList, String option) throws IOException, InterruptedException {
+    public static List<Point> getPathsByMarker(List<Marker> markerList, String option) throws IOException, InterruptedException, ExecutionException {
         Point pointOrigin = getPointByAddress("인천광역시 미추홀구 매소홀로488번길 6-32 태승빌딩 5층");
         assert pointOrigin != null;
         Marker markerOrigin = new Marker(pointOrigin.getX(), pointOrigin.getY(), "인천일보아카데미", "0101", 1, "url");
         markerList.add(markerOrigin);
         List<Marker> shortestMarkers = null;
         if (option.equals("distance")) {
-            shortestMarkers = getShortestPath(markerList, pointOrigin);
-        }else if (option.equals("duration")){
-            shortestMarkers = getShortestTime(markerList, pointOrigin);
+            shortestMarkers = getShortestPathByMultiThread(markerList, pointOrigin);
+            System.out.println(option);
+        } else if (option.equals("duration")) {
+            shortestMarkers = getShortestTimeByMultiThread(markerList, pointOrigin);
+            System.out.println(option);
         }
         List<Point> pointList = new ArrayList<>();
         List<Point> paths = new ArrayList<>();
@@ -409,6 +609,7 @@ public class KakaoApiUtil {
         public int getId() {
             return id;
         }
+
         public Double getX() {
             return x;
         }
