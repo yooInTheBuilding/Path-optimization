@@ -5,7 +5,6 @@ import kr.co.icia.mapline.util.KakaoApiUtil.Point;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
@@ -72,7 +71,7 @@ public class KakaoUtilTest {
     }
     @Test
     public void getPathsByMarkerTest() throws IOException, InterruptedException {
-        List<Point> paths = KakaoApiUtil.getPathsByMarker(Objects.requireNonNull(KakaoApiUtil.getPointsByKeyword("약국")));
+        List<Point> paths = KakaoApiUtil.getPathsByMarker(Objects.requireNonNull(KakaoApiUtil.getPointsByKeyword("약국")), "distance");
         StringBuilder sb = new StringBuilder();
         int cnt = 0;
         for (Point point : paths){

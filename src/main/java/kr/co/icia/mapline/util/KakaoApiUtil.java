@@ -1,7 +1,6 @@
 package kr.co.icia.mapline.util;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import kr.co.icia.mapline.APIKEY;
 import kr.co.icia.mapline.dto.Places;
@@ -113,6 +112,46 @@ public class KakaoApiUtil {
         return shortestPath;
     }
 
+    public static List<Marker> getShortestTime(List<Marker> markers, Point pointOrigin) throws IOException, InterruptedException {
+        List<Marker> shortestTime = new ArrayList<>();
+        Marker current = null;
+
+        for (Marker marker : markers) {
+            if (marker.getX().equals(pointOrigin.getX()) && marker.getY().equals(pointOrigin.getY())) {
+                current = marker;
+                break;
+            }
+        }
+
+        if (current == null) {
+            throw new IllegalArgumentException("pointOrigin is not in the list of markers");
+        }
+
+        shortestTime.add(current);
+        markers.remove(current);
+
+        while (!markers.isEmpty()) {
+            Marker closest = null;
+            int shortestDuration = Integer.MAX_VALUE;
+
+            for (Marker marker : markers) {
+                int duration = getDuration(new Point(current.getX(), current.getY()), new Point(marker.getX(), marker.getY()));
+                if (duration < shortestDuration) {
+                    closest = marker;
+                    shortestDuration = duration;
+                }
+            }
+
+            shortestTime.add(closest);
+            markers.remove(closest);
+            current = closest;
+        }
+
+        // Add pointOrigin as the final destination
+        shortestTime.add(shortestTime.get(0));
+        return shortestTime;
+    }
+
     /**
      * 주소 -> 좌표 변환
      *
@@ -222,15 +261,21 @@ public class KakaoApiUtil {
         return markerList;//markerList 반환
     }
 
-    public static List<Point> getPathsByMarker(List<Marker> markerList) throws IOException, InterruptedException {
+    public static List<Point> getPathsByMarker(List<Marker> markerList, String option) throws IOException, InterruptedException {
         Point pointOrigin = getPointByAddress("인천광역시 미추홀구 매소홀로488번길 6-32 태승빌딩 5층");
         assert pointOrigin != null;
         Marker markerOrigin = new Marker(pointOrigin.getX(), pointOrigin.getY(), "인천일보아카데미", "0101", 1, "url");
         markerList.add(markerOrigin);
-        List<Marker> shortestPathMarkers = getShortestPath(markerList, pointOrigin);
+        List<Marker> shortestMarkers = null;
+        if (option.equals("distance")) {
+            shortestMarkers = getShortestPath(markerList, pointOrigin);
+        }else if (option.equals("duration")){
+            shortestMarkers = getShortestTime(markerList, pointOrigin);
+        }
         List<Point> pointList = new ArrayList<>();
         List<Point> paths = new ArrayList<>();
-        for (Marker marker : shortestPathMarkers) {
+        assert shortestMarkers != null;
+        for (Marker marker : shortestMarkers) {
             Point point = new Point(marker.getX(), marker.getY());
             pointList.add(point);
         }

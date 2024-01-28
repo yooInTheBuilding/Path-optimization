@@ -16,6 +16,10 @@
 
 <form>
     검색 : <input type="text" name="keyword" th:value="${param.keyword}"/> <!-- 검색어 입력 -->
+    옵션 : <select name="option">
+                <option value="duration">최단시간</option>
+                <option value="distance">최단거리</option>
+            </select>
     <button>변환</button> <!-- 검색 버튼 -->
 </form>
 <button onclick="start()">출발</button>
